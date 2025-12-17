@@ -8,6 +8,8 @@ data class LocalUser(
     val email: String,
     val password: String
 )
+private const val PREFS_NAME = "app_prefs"
+private const val KEY_ONBOARDING_SEEN = "onboarding_seen"
 
 class LocalAuthStore(context: Context) {
 
