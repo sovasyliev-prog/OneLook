@@ -1,5 +1,7 @@
 package com.vasiliev.onelook.ui.screens
 
+import android.app.Activity
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,25 +12,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.vasiliev.onelook.data.LocalAuthStore
-import com.vasiliev.onelook.data.LocalUser
+import com.vasiliev.onelook.HomeActivity
+import com.vasiliev.onelook.auth.AuthRepository
 import com.vasiliev.onelook.ui.components.PrimaryButton
 import com.vasiliev.onelook.ui.theme.AppColors
 import com.vasiliev.onelook.ui.theme.AppText
 import com.vasiliev.onelook.util.isValidEmail
 import com.vasiliev.onelook.util.isValidFullName
 import com.vasiliev.onelook.util.isValidPassword
+import kotlinx.coroutines.launch
 
 @Composable
 fun SignUpScreen(
     onGoToSignIn: () -> Unit
 ) {
     val context = LocalContext.current
-    val store = remember { LocalAuthStore(context) }
+    val authRepository = remember { AuthRepository() }
+    val scope = rememberCoroutineScope()
 
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
 
     var googleEnabled by remember { mutableStateOf(true) }
     var facebookEnabled by remember { mutableStateOf(true) }
@@ -78,8 +83,9 @@ fun SignUpScreen(
         Spacer(Modifier.height(16.dp))
 
         PrimaryButton(
-            text = "Sign Up",
+            text = if (loading) "Creating..." else "Sign Up",
             onClick = {
+                if (loading) return@PrimaryButton
                 val valid = isValidFullName(fullName)
                         && isValidEmail(email)
                         && isValidPassword(password)
@@ -91,10 +97,23 @@ fun SignUpScreen(
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    store.saveUser(LocalUser(fullName, email, password))
-                    store.setLoggedIn(true)
-                    Toast.makeText(context, "Account created", Toast.LENGTH_SHORT).show()
-                    onGoToSignIn()
+                    scope.launch {
+                        loading = true
+                        val result = authRepository.signUp(fullName, email, password)
+                        loading = false
+
+                        result.onSuccess {
+                            Toast.makeText(context, "Account created", Toast.LENGTH_SHORT).show()
+                            context.startActivity(Intent(context, HomeActivity::class.java))
+                            (context as? Activity)?.finish()
+                        }.onFailure {
+                            Toast.makeText(
+                                context,
+                                it.message ?: "Account was not created",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 }
             }
         )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -16,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.vasiliev.onelook.R
+import com.vasiliev.onelook.data.local.TaskEntity
 import com.vasiliev.onelook.ui.theme.AppColors
 import com.vasiliev.onelook.ui.theme.AppSpacing
 import com.vasiliev.onelook.ui.theme.AppText
@@ -25,9 +27,11 @@ private val Mint = Color(0xFF7FDCC6)
 
 @Composable
 fun HomeScreen(
+    tasks: List<TaskEntity>,
     onAddClick: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenSettings: () -> Unit,
+    onTaskClick: (TaskEntity) -> Unit,
 ) {
     Surface(color = AppColors.White) {
         LazyColumn(
@@ -53,13 +57,10 @@ fun HomeScreen(
                 Spacer(Modifier.height(AppSpacing.S))
             }
 
-            item { TodoItem(title = "Breath training", subtitle = "Continue exercise", checked = true) }
-            item { Spacer(Modifier.height(AppSpacing.S)) }
-            item { TodoItem(title = "Omega 3", subtitle = "1 pill after meal", checked = true) }
-            item { Spacer(Modifier.height(AppSpacing.S)) }
-            item { TodoItem(title = "Vitamin D", subtitle = "1 sachet before meal", checked = false) }
-            item { Spacer(Modifier.height(AppSpacing.S)) }
-            item { TodoItem(title = "Step Goal", subtitle = "4 456 / 10 000", checked = false, showProgress = true) }
+            items(tasks, key = { it.id }) { task ->
+                TodoItem(task = task, onClick = { onTaskClick(task) })
+                Spacer(Modifier.height(AppSpacing.S))
+            }
         }
     }
 }
@@ -89,7 +90,7 @@ private fun IconChip(icon: Int, onClick: () -> Unit) {
             .clip(RoundedCornerShape(12.dp))
             .background(AppColors.VioletLight)
             .padding(8.dp)
-            .clickable { onClick },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
 
@@ -111,21 +112,41 @@ private fun HealthStatsRow() {
         }
         Spacer(Modifier.height(AppSpacing.S))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(title = "Breath Rate", value = "12 BrPM", bg = AppColors.VioletLight, icon = R.drawable.ic_breath)
-            StatCard(title = "Heart Rate", value = "68 BPM", bg = Mint, icon = R.drawable.ic_heart)
-            StatCard(title = "Blood Pr.", value = "122 / 8", bg = AppColors.PeachLight, icon = R.drawable.ic_blood)
+            StatCard(
+                title = "Breath Rate",
+                value = "12 BrPM",
+                bg = AppColors.VioletLight,
+                icon = R.drawable.ic_breath,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                title = "Heart Rate",
+                value = "68 BPM",
+                bg = Mint,
+                icon = R.drawable.ic_heart,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                title = "Blood Pr.",
+                value = "122 / 8",
+                bg = AppColors.PeachLight,
+                icon = R.drawable.ic_blood,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
 
 @Composable
-private fun StatCard(title: String, value: String, bg: androidx.compose.ui.graphics.Color, icon: Int) {
+private fun StatCard(
+    title: String,
+    value: String,
+    bg: androidx.compose.ui.graphics.Color,
+    icon: Int,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(bg)
-            .padding(12.dp)
+        modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(bg)
             .padding(12.dp)
@@ -153,7 +174,7 @@ private fun TodoHeader(onAddClick: () -> Unit) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(AppColors.VioletLight)
                 .padding(horizontal = 10.dp, vertical = 8.dp)
-                .clickable { onAddClick },
+                .clickable { onAddClick() },
             verticalAlignment = Alignment.CenterVertically
         ) {
 
@@ -170,26 +191,34 @@ private fun TodoHeader(onAddClick: () -> Unit) {
 }
 
 @Composable
-private fun TodoItem(title: String, subtitle: String, checked: Boolean, showProgress: Boolean = false) {
+private fun TodoItem(task: TaskEntity, onClick: () -> Unit) {
+    val showProgress = task.progressCurrent != null && task.progressTarget != null
+    val progress = if (showProgress) {
+        (task.progressCurrent!!.toFloat() / task.progressTarget!!.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(AppColors.White)
+            .background(AppColors.LilacPetals)
+            .clickable { onClick() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            painter = painterResource(if (checked) R.drawable.ic_check_on else R.drawable.ic_check_off),
+            painter = painterResource(if (task.completed) R.drawable.ic_check_on else R.drawable.ic_check_off),
             contentDescription = null,
-            tint = if (checked) Mint else AppColors.DarkGrey,
+            tint = if (task.completed) Mint else AppColors.DarkGrey,
             modifier = Modifier.size(20.dp)
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, style = AppText.Body2, color = AppColors.DeepBlue)
+            Text(task.title, style = AppText.Body2, color = AppColors.DeepBlue)
             Spacer(Modifier.height(4.dp))
-            Text(subtitle, style = AppText.Body3, color = AppColors.DarkGrey)
+            Text(task.subtitle, style = AppText.Body3, color = AppColors.DarkGrey)
             if (showProgress) {
                 Spacer(Modifier.height(8.dp))
                 Box(
@@ -198,7 +227,15 @@ private fun TodoItem(title: String, subtitle: String, checked: Boolean, showProg
                         .height(6.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(AppColors.VioletLight)
-                )
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(AppColors.PurplePlum)
+                    )
+                }
             }
         }
         Spacer(Modifier.width(10.dp))

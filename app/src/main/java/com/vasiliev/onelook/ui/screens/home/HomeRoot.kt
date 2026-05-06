@@ -8,15 +8,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.vasiliev.onelook.R
+import com.vasiliev.onelook.data.AppDataRepository
+import com.vasiliev.onelook.data.local.TaskEntity
 import com.vasiliev.onelook.ui.screens.add.AddActivityScreen
 import com.vasiliev.onelook.ui.screens.add.AddSupplementScreen
 import com.vasiliev.onelook.ui.screens.add.ChooseTaskCategoryDialog
+import com.vasiliev.onelook.ui.screens.activity.WalkingActivityScreen
 import com.vasiliev.onelook.ui.screens.notifications.NotificationSuccessScreen
 import com.vasiliev.onelook.ui.screens.notifications.NotificationsScreen
 import com.vasiliev.onelook.ui.screens.settings.BandHowToSyncScreen
@@ -24,14 +28,35 @@ import com.vasiliev.onelook.ui.screens.settings.BandNotSyncedScreen
 import com.vasiliev.onelook.ui.screens.settings.SettingsScreen
 import com.vasiliev.onelook.ui.theme.AppColors
 import com.vasiliev.onelook.ui.theme.AppText
+import kotlinx.coroutines.launch
 
 private enum class HomeTab { HOME, NOTIFICATIONS, SETTINGS }
-private enum class Overlay { NONE, CHOOSE_CATEGORY, ADD_SUPPLEMENT, ADD_ACTIVITY, BAND_NOT_SYNCED, BAND_HOW_TO, NOTIF_SUCCESS }
+private enum class Overlay {
+    NONE,
+    CHOOSE_CATEGORY,
+    ADD_SUPPLEMENT,
+    ADD_ACTIVITY,
+    WALKING_ACTIVITY,
+    BAND_NOT_SYNCED,
+    BAND_HOW_TO,
+    NOTIF_SUCCESS
+}
 
 @Composable
-fun HomeRoot() {
+fun HomeRoot(openWalkingOnStart: Boolean = false) {
+    val context = LocalContext.current
+    val dataRepository = remember { AppDataRepository(context.applicationContext) }
+    val scope = rememberCoroutineScope()
+    val tasks by dataRepository.observeTasks().collectAsState(initial = emptyList())
+
     var tab by remember { mutableStateOf(HomeTab.HOME) }
-    var overlay by remember { mutableStateOf(Overlay.NONE) }
+    var overlay by remember {
+        mutableStateOf(if (openWalkingOnStart) Overlay.WALKING_ACTIVITY else Overlay.NONE)
+    }
+
+    LaunchedEffect(Unit) {
+        dataRepository.seedDefaultTasks()
+    }
 
     Surface(color = AppColors.White) {
         Box(Modifier.fillMaxSize()) {
@@ -41,9 +66,19 @@ fun HomeRoot() {
                 Box(Modifier.weight(1f)) {
                     when (tab) {
                         HomeTab.HOME -> HomeScreen(
+                            tasks = tasks,
                             onAddClick = { overlay = Overlay.CHOOSE_CATEGORY },
                             onOpenNotifications = { tab = HomeTab.NOTIFICATIONS },
                             onOpenSettings = { tab = HomeTab.SETTINGS },
+                            onTaskClick = { task ->
+                                if (task.opensWalkingActivity()) {
+                                    overlay = Overlay.WALKING_ACTIVITY
+                                } else {
+                                    scope.launch {
+                                        dataRepository.setTaskCompleted(task.id, !task.completed)
+                                    }
+                                }
+                            }
                         )
                         HomeTab.NOTIFICATIONS -> NotificationsScreen(
                             onClose = { tab = HomeTab.HOME },
@@ -75,12 +110,30 @@ fun HomeRoot() {
 
                 Overlay.ADD_SUPPLEMENT -> AddSupplementScreen(
                     onClose = { overlay = Overlay.NONE },
-                    onDone = { overlay = Overlay.NONE }
+                    onDone = {
+                        scope.launch { dataRepository.addSupplementTask() }
+                        overlay = Overlay.NONE
+                    }
                 )
 
                 Overlay.ADD_ACTIVITY -> AddActivityScreen(
                     onClose = { overlay = Overlay.NONE },
-                    onDone = { overlay = Overlay.NONE }
+                    onDone = {
+                        scope.launch { dataRepository.addActivityTask() }
+                        overlay = Overlay.NONE
+                    }
+                )
+
+                Overlay.WALKING_ACTIVITY -> WalkingActivityScreen(
+                    onBackHome = {
+                        overlay = Overlay.NONE
+                        tab = HomeTab.HOME
+                    },
+                    onSaveSession = { durationSeconds, steps, calories ->
+                        scope.launch {
+                            dataRepository.saveWalkingSession(durationSeconds, steps, calories)
+                        }
+                    }
                 )
 
                 Overlay.BAND_NOT_SYNCED -> BandNotSyncedScreen(
@@ -106,6 +159,11 @@ fun HomeRoot() {
             }
         }
     }
+}
+
+private fun TaskEntity.opensWalkingActivity(): Boolean {
+    return title.equals("Step Goal", ignoreCase = true) ||
+        title.equals("Walking", ignoreCase = true)
 }
 
 @Composable
@@ -166,7 +224,7 @@ private fun BottomItem(
             .clip(RoundedCornerShape(14.dp))
             .background(if (selected) AppColors.VioletLight else AppColors.White)
             .padding(10.dp)
-            .clickable { onClick },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
 
@@ -185,7 +243,7 @@ private fun AddCenterButton(onClick: () -> Unit) {
             .size(52.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(AppColors.PurplePlum)
-            .clickable { onClick },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
 

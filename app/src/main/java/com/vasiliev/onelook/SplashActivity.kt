@@ -8,7 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import com.vasiliev.onelook.data.LocalAuthStore
+import com.vasiliev.onelook.auth.AuthRepository
 import com.vasiliev.onelook.ui.screens.SplashScreen
 import com.vasiliev.onelook.ui.theme.AppTheme
 import kotlinx.coroutines.delay
@@ -21,7 +21,7 @@ class SplashActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val store = LocalAuthStore(this)
+        val authRepository = AuthRepository()
 
         setContent {
             AppTheme {
@@ -47,7 +47,7 @@ class SplashActivity : ComponentActivity() {
 
                 // --- Auto redirect after 1 second (за вимогою ЛР) ---
                 LaunchedEffect(Unit) {
-                    delay(1000)
+                    delay(10000)
                     if (navigatedState.value) return@LaunchedEffect
 
                     val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -57,7 +57,7 @@ class SplashActivity : ComponentActivity() {
                         !onboardingSeen ->
                             Intent(this@SplashActivity, OnboardingActivity::class.java)
 
-                        store.isLoggedIn() ->
+                        authRepository.isAuthorized() ->
                             Intent(this@SplashActivity, HomeActivity::class.java)
 
                         else ->

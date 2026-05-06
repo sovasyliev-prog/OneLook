@@ -1,19 +1,33 @@
 package com.vasiliev.onelook.ui.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.vasiliev.onelook.data.LocalAuthStore
+import com.vasiliev.onelook.auth.AuthRepository
 import com.vasiliev.onelook.ui.components.PrimaryButton
 import com.vasiliev.onelook.ui.theme.AppColors
 import com.vasiliev.onelook.ui.theme.AppText
 import com.vasiliev.onelook.util.isValidEmail
+import kotlinx.coroutines.launch
 
 @Composable
 fun ResetEmailScreen(
@@ -21,9 +35,11 @@ fun ResetEmailScreen(
     onEmailConfirmed: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val store = remember { LocalAuthStore(context) }
+    val authRepository = remember { AuthRepository() }
+    val scope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -58,23 +74,31 @@ fun ResetEmailScreen(
         Spacer(Modifier.height(24.dp))
 
         PrimaryButton(
-            text = "Confirm e-mail",
+            text = if (loading) "Sending..." else "Confirm e-mail",
             onClick = {
-                val okEmail = isValidEmail(email)
-                val saved = store.getUser()
+                if (loading) return@PrimaryButton
 
-                if (!okEmail) {
+                if (!isValidEmail(email)) {
                     Toast.makeText(context, "Some fields has incorrect data", Toast.LENGTH_SHORT).show()
                     return@PrimaryButton
                 }
 
-                if (saved == null || saved.email != email.trim()) {
-                    Toast.makeText(context, "Email not found", Toast.LENGTH_SHORT).show()
-                    return@PrimaryButton
-                }
+                scope.launch {
+                    loading = true
+                    val result = authRepository.sendPasswordReset(email)
+                    loading = false
 
-                // Імітація "лист на пошту" — просто переходимо далі
-                onEmailConfirmed(email.trim())
+                    result.onSuccess {
+                        Toast.makeText(context, "Password reset email was sent", Toast.LENGTH_SHORT).show()
+                        onEmailConfirmed(email.trim())
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            it.message ?: "Password reset email was not sent",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
         )
 

@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+/.gradle-home
+/_docx_tmp
+/_docx_render_zvit
+~$*.docx
+/zvit_*.docx
+/_push_*

@@ -80,7 +80,7 @@ private fun TopBar(title: String, onClose: () -> Unit) {
             modifier = Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .clickable { onClose }
+                .clickable { onClose() }
                 .background(AppColors.VioletLight),
             contentAlignment = Alignment.Center
         ) {

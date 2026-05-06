@@ -7,7 +7,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.vasiliev.onelook.ui.screens.ResetEmailScreen
-import com.vasiliev.onelook.ui.screens.ResetNewPasswordScreen
 import com.vasiliev.onelook.ui.screens.ResetSuccessScreen
 import com.vasiliev.onelook.ui.screens.SignInScreen
 import com.vasiliev.onelook.ui.screens.SignUpScreen
@@ -25,36 +24,27 @@ class AuthActivity : ComponentActivity() {
                     composable("signin") {
                         SignInScreen(
                             onGoToSignUp = { nav.navigate("signup") },
-                            onForgotPassword = { nav.navigate("reset_email") }  // ← додай
+                            onForgotPassword = { nav.navigate("reset_email") }
                         )
                     }
+
                     composable("signup") {
                         SignUpScreen(onGoToSignIn = { nav.popBackStack() })
                     }
 
-                    // NEW
                     composable("reset_email") {
                         ResetEmailScreen(
                             onBackToLogin = { nav.popBackStack("signin", inclusive = false) },
-                            onEmailConfirmed = { nav.navigate("reset_new_password/$it") }
+                            onEmailConfirmed = { nav.navigate("reset_success") }
                         )
                     }
-                    composable("reset_new_password/{email}") { backStackEntry ->
-                        val email = backStackEntry.arguments?.getString("email").orEmpty()
-                        ResetNewPasswordScreen(
-                            email = email,
-                            onPasswordChanged = { nav.navigate("reset_success") }
-                        )
-                    }
+
                     composable("reset_success") {
                         ResetSuccessScreen(
                             onGoToLogin = { nav.popBackStack("signin", inclusive = false) }
                         )
                     }
                 }
-
-
-
             }
         }
     }
